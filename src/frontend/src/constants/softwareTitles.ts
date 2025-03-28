@@ -1,0 +1,17 @@
+export const SOFTWARE_TITLES = [
+  { value: "Frontend Developer", label: "Frontend Developer" },
+  { value: "Backend Developer", label: "Backend Developer" },
+  { value: "Full Stack Developer", label: "Full Stack Developer" },
+  { value: "Mobile App Developer", label: "Mobile App Developer" },
+  { value: "Data Scientist", label: "Data Scientist" },
+  { value: "Machine Learning Engineer", label: "Machine Learning Engineer" },
+  { value: "DevOps Engineer", label: "DevOps Engineer" },
+  { value: "Cloud Architect", label: "Cloud Architect" },
+  { value: "Cybersecurity Analyst", label: "Cybersecurity Analyst" },
+  { value: "Game Developer", label: "Game Developer" },
+  { value: "Embedded Systems Engineer", label: "Embedded Systems Engineer" },
+  { value: "Quality Assurance Engineer", label: "Quality Assurance Engineer" },
+  { value: "Database Administrator", label: "Database Administrator" },
+  { value: "Blockchain Developer", label: "Blockchain Developer" },
+  { value: "AI Researcher", label: "AI Researcher" },
+];
