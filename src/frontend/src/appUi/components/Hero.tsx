@@ -79,7 +79,7 @@ const HeroPage = () => {
           <h1 className="text-4xl md:text-7xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-b from-neutral-500 to-neutral-900">
             AI-Powered Reputation Tracker
           </h1>
-          <p className="mt-4 font-normal text-base text-neutral-500 max-w-lg text-center mx-auto">
+          <p className="mt-4 font-normal text-base text-neutral-500 max-w-3xl text-center mx-auto">
             Connect with top professionals in any field through our AI and Web3
             blockchain-powered reputation system. Recruiters can easily find and
             select high-reputation individuals, ensuring quality and trust in
@@ -90,7 +90,6 @@ const HeroPage = () => {
       </div>
       <div className="absolute top-[28rem] left-0 w-full h-[40rem] md:px-0 px-4">
         <div className="relative w-full h-full max-w-5xl mx-auto">
-          {/* <img src="/images/mockup.webp" alt="" className="w-full h-[80vh]"/> */}
         </div>
       </div>
     </section>

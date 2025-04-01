@@ -58,7 +58,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user, logout }) => {
     const baseOptions = [
       {
         label: "View Profile",
-        path: `/profile/${user.lastName}-${user.firstName}`.toLowerCase(),
+        path: `/profile`,
         show: true,
       },
     ];

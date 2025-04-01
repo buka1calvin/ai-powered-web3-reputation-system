@@ -44,8 +44,6 @@ const RankBadge = ({ level }: { level: string }) => {
     </div>
   );
 };
-
-// New component for skill badges with color coding based on proficiency level
 const SkillBadge = ({ skill, level = "beginner" }: { skill: string; level?: string }) => {
   const getSkillBadgeColor = (level: string) => {
     switch (level.toLowerCase()) {
@@ -85,14 +83,17 @@ const SkillBadge = ({ skill, level = "beginner" }: { skill: string; level?: stri
   );
 };
 
-const ProfilePage: React.FC = () => {
+
+
+const PublicProfilePage: React.FC = () => {
   const { username } = useParams<{ username?: string }>();
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState<any | null>(null);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null)
 
+  console.log("username",username)
   useEffect(() => {
     const fetchProfileData = async () => {
       setLoading(true);
@@ -106,15 +107,6 @@ const ProfilePage: React.FC = () => {
             setIsOwnProfile(false);
           } else {
             setError(response.message || "Failed to load profile");
-          }
-        } else {
-          // Otherwise fetch the current user's profile
-          const response = await getProfile();
-          if (response.success) {
-            setProfile(response.profile);
-            setIsOwnProfile(true);
-          } else {
-            setError("Failed to load your profile");
           }
         }
       } catch (err) {
@@ -157,43 +149,40 @@ const ProfilePage: React.FC = () => {
       </div>
     );
   }
-  console.log("profile===",profile)
-  
-  // Get programming languages from the profile data
-  const getProgrammingLanguages = () => {
-    if (profile?.developerInfo) {
-      // First try direct programming languages field
-      if (profile.developerInfo.programmingLanguages && 
-          profile.developerInfo.programmingLanguages.length > 0) {
-        return profile.developerInfo.programmingLanguages;
-      }
-      
-      // Then try LinkedIn profile languages
-      if (profile.developerInfo.linkedinProfile?.programmingLanguages && 
-          profile.developerInfo.linkedinProfile.programmingLanguages.length > 0) {
-        return profile.developerInfo.linkedinProfile.programmingLanguages;
-      }
-      
-      // Extract from LinkedIn skills as fallback
-      if (profile.developerInfo.linkedinProfile?.skills && 
-          profile.developerInfo.linkedinProfile.skills.length > 0) {
-        return profile.developerInfo.linkedinProfile.skills.filter((skill: string) => 
-          ['JavaScript', 'TypeScript', 'Python', 'Java', 'C++', 'C#', 'PHP', 'Ruby', 'Go', 'Swift', 'Kotlin', 'Rust'].includes(skill)
-        );
-      }
-      
-      // Based on your example data, include these
-      return ["JavaScript", "TypeScript"];
+console.log("profile==",profile)
+const getProgrammingLanguages = () => {
+  if (profile?.developerInfo) {
+    // First try direct programming languages field
+    if (profile.developerInfo.programmingLanguages && 
+        profile.developerInfo.programmingLanguages.length > 0) {
+      return profile.developerInfo.programmingLanguages;
     }
-    return [];
-  };
-
+    
+    // Then try LinkedIn profile languages
+    if (profile.developerInfo.linkedinProfile?.programmingLanguages && 
+        profile.developerInfo.linkedinProfile.programmingLanguages.length > 0) {
+      return profile.developerInfo.linkedinProfile.programmingLanguages;
+    }
+    
+    // Extract from LinkedIn skills as fallback
+    if (profile.developerInfo.linkedinProfile?.skills && 
+        profile.developerInfo.linkedinProfile.skills.length > 0) {
+      return profile.developerInfo.linkedinProfile.skills.filter((skill: string) => 
+        ['JavaScript', 'TypeScript', 'Python', 'Java', 'C++', 'C#', 'PHP', 'Ruby', 'Go', 'Swift', 'Kotlin', 'Rust'].includes(skill)
+      );
+    }
+    
+    // Based on your example data, include these
+    return ["JavaScript", "TypeScript"];
+  }
+  return [];
+};
   // Render developer-specific information
   const renderDeveloperInfo = () => {
     if (profile.role === "developer" && profile.developerInfo) {
       const devInfo = profile.developerInfo;
       const programmingLanguages = getProgrammingLanguages();
-      
+      console.log("dev info==",devInfo)
       return (
         <div className="bg-white rounded-lg border border-gray-200 p-6 mt-6">
           <h2 className="text-xl font-semibold mb-4 text-gray-700">
@@ -215,12 +204,11 @@ const ProfilePage: React.FC = () => {
               <h3 className="text-lg font-medium text-gray-700 mb-2">Skills</h3>
               <div className="flex flex-wrap">
                 {devInfo.skills.map((skill:string, index:number) => (
-                  <SkillBadge key={index} skill={skill} />
+                  <Badge key={index} icon={FaStar} color="blue" text={skill} />
                 ))}
               </div>
             </div>
-            
-            {/* New Programming Languages Section */}
+
             <div>
               <h3 className="text-lg font-medium text-gray-700 mb-2">Programming Languages</h3>
               <div className="flex flex-wrap">
@@ -281,7 +269,7 @@ const ProfilePage: React.FC = () => {
                   Work Experience
                 </h3>
                 <div className="flex flex-wrap">
-                <Badge
+                  <Badge
                     icon={FaStar}
                     color="purple"
                     text={`Current Role: ${
@@ -304,7 +292,6 @@ const ProfilePage: React.FC = () => {
               </div>
             </div>
           </div>
-          
           <div className="mt-4 flex space-x-6 items-center justify-center">
             <div className="">
               <a
@@ -336,52 +323,21 @@ const ProfilePage: React.FC = () => {
             </a>
           </div>
 
-          {devInfo.descriptions && (
+          {devInfo.bio && (
             <div className="mt-4">
               <h3 className="text-lg font-medium text-gray-700 mb-2">
                 Professional Bio
               </h3>
-              <p className="text-gray-600">{devInfo.descriptions}</p>
+              <p className="text-gray-600">{devInfo.bio}</p>
             </div>
           )}
 
-          {devInfo.education && devInfo.education.length > 0 && (
+          {devInfo.education && (
             <div className="mt-4">
               <h3 className="text-lg font-medium text-gray-700 mb-2">
                 Education
               </h3>
-              <div className="text-gray-600">
-                {devInfo.education.map((edu: any, index: number) => (
-                  <div key={index} className="mb-2">
-                    <p className="font-medium">{edu.institution || edu}</p>
-                    {edu.degree && <p>{edu.degree}</p>}
-                    {edu.fieldOfStudy && <p>{edu.fieldOfStudy}</p>}
-                    {edu.startDate && edu.endDate && (
-                      <p className="text-sm text-gray-500">
-                        {edu.startDate} - {edu.endDate}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {/* Improvement Suggestions Section */}
-          {devInfo.reputationDetails?.improvementSuggestions && 
-            devInfo.reputationDetails.improvementSuggestions.length > 0 && (
-            <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-              <h3 className="text-lg font-medium text-amber-700 mb-2">
-                <FaCertificate className="inline mr-2" />
-                Suggestions for Improvement
-              </h3>
-              <ul className="list-disc pl-5 space-y-1 text-amber-700">
-                {devInfo.reputationDetails.improvementSuggestions.map(
-                  (suggestion: string, index: number) => (
-                    <li key={index}>{suggestion}</li>
-                  )
-                )}
-              </ul>
+              <p className="text-gray-600">{devInfo.education}</p>
             </div>
           )}
         </div>
@@ -495,4 +451,4 @@ const ProfilePage: React.FC = () => {
   );
 };
 
-export default ProfilePage;
+export default PublicProfilePage;

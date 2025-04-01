@@ -6,6 +6,7 @@ import {
   evaluateAssessment,
   generateAssessment,
   analyzeAttention,
+  generateTechnologies,
 } from "../../../api/ai/generate";
 
 import {
@@ -62,6 +63,7 @@ interface UserAnswer {
 type AssessmentStep =
   | "title"
   | "category"
+  | "technologies"
   | "instructions"
   | "assessment"
   | "results";
@@ -77,6 +79,14 @@ interface AssessmentProps {
     React.SetStateAction<EvaluationResult | null>
   >;
 }
+export interface Technology {
+  value: string;
+  label: string;
+}
+
+const storeAssessmentResults = (results: EvaluationResult) => {
+  localStorage.setItem("assessmentResults", JSON.stringify(results));
+};
 
 export const ProgrammingAssessment: React.FC<AssessmentProps> = ({
   setProfile,
@@ -85,6 +95,12 @@ export const ProgrammingAssessment: React.FC<AssessmentProps> = ({
   const [step, setStep] = useState<AssessmentStep>("title");
   const [category, setCategory] = useState<string>("");
   const [title, setTitle] = useState<string>("");
+  const [technologies, setTechnologies] = useState<Technology[]>([]);
+  const [selectedTechnologies, setSelectedTechnologies] = useState<string[]>(
+    []
+  );
+  const [loadingTechnologies, setLoadingTechnologies] =
+    useState<boolean>(false);
   const [assessmentData, setAssessmentData] = useState<Assessment | null>(null);
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [cameraActive, setCameraActive] = useState<boolean>(false);
@@ -115,6 +131,38 @@ export const ProgrammingAssessment: React.FC<AssessmentProps> = ({
       });
     }
   }, [webcamRef]);
+  useEffect(() => {
+    if (title && step === "technologies") {
+      loadTechnologies();
+    }
+  }, [title, step]);
+
+  const loadTechnologies = async () => {
+    if (!title) return;
+
+    setLoadingTechnologies(true);
+    setError("");
+
+    try {
+      const techData = await generateTechnologies(title);
+      setTechnologies(techData);
+    } catch (err) {
+      setError("Failed to load technologies. Please try again.");
+      console.error("Error loading technologies:", err);
+    } finally {
+      setLoadingTechnologies(false);
+    }
+  };
+
+  const handleTechnologyChange = (tech: string) => {
+    setSelectedTechnologies((prev) => {
+      if (prev.includes(tech)) {
+        return prev.filter((t) => t !== tech);
+      } else {
+        return [...prev, tech];
+      }
+    });
+  };
 
   const initCamera = async (): Promise<void> => {
     try {
@@ -161,7 +209,12 @@ export const ProgrammingAssessment: React.FC<AssessmentProps> = ({
     setError("");
 
     try {
-      const data = await generateAssessment(category, title);
+      // Include selected technologies in the assessment generation
+      const data = await generateAssessment(
+        category,
+        title,
+        selectedTechnologies
+      );
       setAssessmentData(data);
       setTimeLeft(data.timeLimit * 60);
       setStep("instructions");
@@ -228,7 +281,6 @@ export const ProgrammingAssessment: React.FC<AssessmentProps> = ({
     };
   }, []);
 
-  // Submit assessment for evaluation
   const submitAssessment = async (
     forcedSubmission: boolean = false
   ): Promise<void> => {
@@ -290,7 +342,8 @@ export const ProgrammingAssessment: React.FC<AssessmentProps> = ({
         title,
         assessmentData.id,
         answers,
-        isCheatingDetected
+        isCheatingDetected,
+        selectedTechnologies
       );
 
       setEvaluationResult(results);
@@ -298,28 +351,6 @@ export const ProgrammingAssessment: React.FC<AssessmentProps> = ({
       if (isCheatingDetected) {
         setError("Assessment invalidated due to suspected cheating.");
         results.cheatingDetected = true;
-      }
-      console.log("is cheating", isCheatingDetected);
-      setStep("results");
-      if (category === "pro") {
-        if (results.score >= 90) {
-          results.assignedLevel = "Pro";
-          results.passed = true;
-        } else if (results.score >= 80) {
-          results.assignedLevel = "Intermediate";
-          results.passed = false;
-        } else {
-          results.assignedLevel = "Beginner";
-          results.passed = false;
-        }
-      } else if (category === "intermediate") {
-        if (results.score >= 90) {
-          results.assignedLevel = "Intermediate";
-          results.passed = true;
-        } else {
-          results.assignedLevel = "Beginner";
-          results.passed = false;
-        }
       }
 
       setResults(results);
@@ -378,13 +409,81 @@ export const ProgrammingAssessment: React.FC<AssessmentProps> = ({
         </RadioGroup>
       </CardContent>
       <CardFooter className="flex justify-end">
-        <Button onClick={() => setStep("category")} disabled={!title}>
+        <Button onClick={() => setStep("technologies")} disabled={!title}>
           Continue
         </Button>
       </CardFooter>
     </Card>
   );
 
+  const renderTechnologiesStep = () => (
+    <Card className="w-full max-w-md mx-auto">
+      <CardHeader>
+        <CardTitle>Select Your Technologies</CardTitle>
+        <CardDescription>
+          Choose the technologies you're comfortable with as a {title}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {loadingTechnologies ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : (
+          <div className="space-y-4 max-h-96 overflow-y-auto">
+            {technologies.map((tech) => (
+              <div key={tech.value} className="flex items-center space-x-2">
+                {/* Custom checkbox implementation */}
+                <div
+                  className={`w-5 h-5 border rounded cursor-pointer flex items-center justify-center ${
+                    selectedTechnologies.includes(tech.value)
+                      ? "bg-primary border-primary"
+                      : "border-gray-300"
+                  }`}
+                  onClick={() => handleTechnologyChange(tech.value)}
+                >
+                  {selectedTechnologies.includes(tech.value) && (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="text-white"
+                    >
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  )}
+                </div>
+                <label
+                  htmlFor={tech.value}
+                  className="cursor-pointer"
+                  onClick={() => handleTechnologyChange(tech.value)}
+                >
+                  {tech.label}
+                </label>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+      <CardFooter className="flex justify-between">
+        <Button variant="outline" onClick={() => setStep("title")}>
+          Back
+        </Button>
+        <Button
+          onClick={() => setStep("category")}
+          disabled={loadingTechnologies || selectedTechnologies.length === 0}
+        >
+          Continue
+        </Button>
+      </CardFooter>
+    </Card>
+  );
   const renderCategoryStep = () => (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
@@ -600,128 +699,230 @@ export const ProgrammingAssessment: React.FC<AssessmentProps> = ({
   );
 
   // Results step
-  const renderResultsStep = () => (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle>Assessment Results</CardTitle>
-        <CardDescription>
-          {category.charAt(0).toUpperCase() + category.slice(1)} level
-          assessment completed
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {results?.cheatingDetected ? (
-          <Alert variant="destructive" className="mb-4">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Assessment Invalidated</AlertTitle>
-            <AlertDescription>
-              Cheating was detected during your assessment. Please retake the
-              assessment under proper conditions.
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Your Score:</span>
-                <span className="font-bold text-lg">{results?.score}%</span>
+  const renderResultsStep = () => {
+    console.log("results===", results);
+    return (
+      <Card className="w-full max-w-2xl mx-auto">
+        <CardHeader>
+          <CardTitle>Assessment Results</CardTitle>
+          <CardDescription>
+            {title && SOFTWARE_TITLES.find((t) => t.value === title)?.label} -
+            {category.charAt(0).toUpperCase() + category.slice(1)} level
+            assessment completed
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {results?.cheatingDetected ? (
+            <Alert variant="destructive" className="mb-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Assessment Invalidated</AlertTitle>
+              <AlertDescription>
+                Cheating was detected during your assessment. Please retake the
+                assessment under proper conditions.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm font-medium">Your Score:</span>
+                  <span className="font-bold text-lg">{results?.score}%</span>
+                </div>
+                <Progress
+                  value={results?.score}
+                  className="h-3 rounded-full"
+                  style={{
+                    background: "linear-gradient(to right, #f3f4f6, #e5e7eb)",
+                    boxShadow: "inset 0 1px 2px rgba(0,0,0,0.1)",
+                  }}
+                />
+                <div className="flex justify-between text-xs text-slate-500 mt-1">
+                  <span>0%</span>
+                  <span>50%</span>
+                  <span>100%</span>
+                </div>
               </div>
-              <Progress value={results?.score} className="h-2" />
-            </div>
 
-            <div className="bg-slate-50 p-4 rounded">
-              <div className="flex items-center space-x-2 mb-2">
-                <h3 className="font-semibold">Final Assessment:</h3>
-                <Badge
-                  className={`${
-                    results?.passed ? "default" : "destructive"
-                  } ml-2`}
-                >
-                  {results?.passed ? results?.assignedLevel : "Failed"}
-                </Badge>
+              {!results?.passed && results?.assignedLevel !== "Failed" && (
+                <Alert className="mb-4 bg-blue-50 border-blue-200 text-blue-800">
+                  <AlertTitle className="text-blue-800">
+                    Assessment Result
+                  </AlertTitle>
+                  <AlertDescription>
+                    You've demonstrated skills at the {results?.assignedLevel}{" "}
+                    level, but your current score of {results?.score}% doesn't
+                    meet the requirements for your selected {category} level
+                    assessment.
+                    {category === "pro"
+                      ? " Pro level requires a score of 90% or higher."
+                      : category === "intermediate"
+                      ? " Intermediate level requires a score of 80% or higher."
+                      : ""}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {!results?.passed && results?.assignedLevel === "Beginner" && (
+                <Alert className="mb-4 bg-blue-50 border-blue-200 text-blue-800">
+                  <AlertTitle className="text-blue-800">
+                    Assessment Result
+                  </AlertTitle>
+                  <AlertDescription>
+                    You've been classified as a Beginner. You can either
+                    continue with your profile or retake the assessment to
+                    achieve a higher skill level.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                <div className="flex items-center space-x-2 mb-2">
+                  <h3 className="font-semibold">Final Assessment:</h3>
+                  <Badge
+                    className={`${
+                      results?.passed
+                        ? "bg-green-100 text-green-800 border border-green-200"
+                        : "bg-amber-100 text-amber-800 border border-amber-200"
+                    } ml-2 px-3 py-1`}
+                  >
+                    {results?.assignedLevel}
+                  </Badge>
+                  {!results?.passed && results?.assignedLevel !== "Failed" && (
+                    <span className="text-sm text-slate-500">
+                      (Not sufficient for {category} level)
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-slate-600">{results?.feedback}</p>
               </div>
-              <p className="text-sm text-slate-600">{results?.feedback}</p>
-            </div>
 
-            <div className="space-y-4">
-              <h3 className="font-medium">Detailed Feedback:</h3>
-              <Tabs defaultValue="strengths">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="strengths">Strengths</TabsTrigger>
-                  <TabsTrigger value="weaknesses">Areas to Improve</TabsTrigger>
-                  <TabsTrigger value="resources">Resources</TabsTrigger>
-                </TabsList>
-                <TabsContent value="strengths" className="space-y-2 pt-2">
-                  <ul className="list-disc pl-5 space-y-1">
-                    {results?.strengths.map((item, i) => (
-                      <li key={i} className="text-sm">
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </TabsContent>
-                <TabsContent value="weaknesses" className="space-y-2 pt-2">
-                  <ul className="list-disc pl-5 space-y-1">
-                    {results?.weaknesses.map((item, i) => (
-                      <li key={i} className="text-sm">
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </TabsContent>
-                <TabsContent value="resources" className="space-y-2 pt-2">
-                  <ul className="list-disc pl-5 space-y-1">
-                    {results?.resources.map((item, i) => (
-                      <li key={i} className="text-sm">
-                        <a
-                          href={item.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          {item.title}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </TabsContent>
-              </Tabs>
-            </div>
-          </>
-        )}
-      </CardContent>
-      <CardFooter className="flex justify-between">
-        <Button
-          variant="outline"
-          onClick={() => {
-            setStep("title");
-            setCategory("");
-            setAssessmentData(null);
-            setUserAnswers({});
-            setCameraActive(false);
-            setScreenShareActive(false);
-            setResults(null);
-            setCheatingDetected(false);
-            setError("");
-          }}
-        >
-          Start New Assessment
-        </Button>
+              <div className="space-y-4">
+                <h3 className="font-medium">Selected Technologies:</h3>
+                <div className="flex flex-wrap gap-2">
+                  {selectedTechnologies.map((tech) => (
+                    <Badge key={tech} className="px-3 py-1">
+                      {technologies.find((t) => t.value === tech)?.label ||
+                        tech}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
 
-        {results?.passed ? (
-          <Button variant="default" onClick={() => setProfile(true)}>
-            Continue
+              <div className="space-y-4">
+                <h3 className="font-medium">Detailed Feedback:</h3>
+                <Tabs defaultValue="strengths">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="strengths">Strengths</TabsTrigger>
+                    <TabsTrigger value="weaknesses">
+                      Areas to Improve
+                    </TabsTrigger>
+                    <TabsTrigger value="resources">Resources</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="strengths" className="space-y-2 pt-2">
+                    <ul className="list-disc pl-5 space-y-1">
+                      {results?.strengths.map((item, i) => (
+                        <li key={i} className="text-sm">
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </TabsContent>
+                  <TabsContent value="weaknesses" className="space-y-2 pt-2">
+                    <ul className="list-disc pl-5 space-y-1">
+                      {results?.weaknesses.map((item, i) => (
+                        <li key={i} className="text-sm">
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </TabsContent>
+                  <TabsContent value="resources" className="space-y-2 pt-2">
+                    <ul className="list-disc pl-5 space-y-1">
+                      {results?.resources.map((item, i) => (
+                        <li key={i} className="text-sm">
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline"
+                          >
+                            {item.title}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </>
+          )}
+        </CardContent>
+        <CardFooter className="flex justify-between">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setStep("title");
+              setCategory("");
+              setAssessmentData(null);
+              setUserAnswers({});
+              setCameraActive(false);
+              setScreenShareActive(false);
+              setResults(null);
+              setCheatingDetected(false);
+              setError("");
+              setSelectedTechnologies([]);
+            }}
+          >
+            Start New Assessment
           </Button>
-        ) : (
-          <Button variant="default">Review Learning Materials</Button>
-        )}
-      </CardFooter>
-    </Card>
-  );
+
+          {results?.passed ? (
+            <Button variant="default" onClick={() => setProfile(true)}>
+              Continue to Profile
+            </Button>
+          ) : results?.assignedLevel === "Beginner" ? (
+            <div className="space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setStep("category");
+                  setUserAnswers({});
+                }}
+              >
+                Retake Assessment
+              </Button>
+              <Button
+                variant="default"
+                onClick={() => {
+                  storeAssessmentResults(results);
+                  setProfile(true);
+                }}
+              >
+                Continue as Beginner
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="default"
+              onClick={() => {
+                setStep("category");
+                setUserAnswers({});
+              }}
+            >
+              Retake Assessment
+            </Button>
+          )}
+        </CardFooter>
+      </Card>
+    );
+  };
+
   const renderStep = () => {
     switch (step) {
       case "title":
         return renderTitleStep();
+      case "technologies":
+        return renderTechnologiesStep();
       case "category":
         return renderCategoryStep();
       case "instructions":

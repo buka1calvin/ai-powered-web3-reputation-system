@@ -12,21 +12,16 @@ import { createProfile } from "../../api/profiles";
 import { getStoredUserData } from "../../api/signin";
 import { ProgrammingAssessment } from "../../appUi/components/ai/Ai";
 import { EvaluationResult } from "../../types/types";
-import {
-  fetchGitHubAccessToken,
-  fetchGitHubUserData,
-} from "../../api/github";
+import { fetchGitHubAccessToken, fetchGitHubUserData } from "../../api/github";
 import {
   connectWithLinkedIn,
   fetchLinkedInAccessToken,
   fetchLinkedInUserData,
   fetchLinkedInProfileDetails,
   processLinkedInDataForProfile,
-  enhanceLinkedInData
+  enhanceLinkedInData,
 } from "../../api/linkedin";
-import {
-  calculateReputationScoreWithAI,
-} from "../../api/ai/reputationScoreCalculator";
+import { calculateReputationScoreWithAI } from "../../api/ai/reputationScoreCalculator";
 
 // Add a function to store and retrieve assessment results from localStorage
 const storeAssessmentResults = (results: EvaluationResult) => {
@@ -83,9 +78,18 @@ const ProfileCreation: React.FC = () => {
     getStoredAssessmentResults()
   );
   const [githubData, setGithubData] = useState<any>(getStoredGitHubData());
-  const [linkedInData, setLinkedInData] = useState<any>(getStoredLinkedInData());
+  const [linkedInData, setLinkedInData] = useState<any>(
+    getStoredLinkedInData()
+  );
+
+  // Loading states for different operations
   const [isConnectingGithub, setIsConnectingGithub] = useState(false);
   const [isConnectingLinkedIn, setIsConnectingLinkedIn] = useState(false);
+  const [isLoadingGithubUserData, setIsLoadingGithubUserData] = useState(false);
+  const [isLoadingLinkedInUserData, setIsLoadingLinkedInUserData] =
+    useState(false);
+  const [isLoadingGithubAvatar, setIsLoadingGithubAvatar] = useState(false);
+  const [isLoadingLinkedInAvatar, setIsLoadingLinkedInAvatar] = useState(false);
 
   const user = getStoredUserData();
   const navigate = useNavigate();
@@ -94,6 +98,7 @@ const ProfileCreation: React.FC = () => {
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<ICreateProfile>({
     defaultValues: {
@@ -148,30 +153,41 @@ const ProfileCreation: React.FC = () => {
           })
           .catch((error) => {
             console.error("LinkedIn connection error:", error);
+          })
+          .finally(() => {
             setIsConnectingLinkedIn(false);
+            setIsLoadingLinkedInUserData(false);
           });
       }
       // If not LinkedIn, assume it's GitHub
       else {
         setIsConnectingGithub(true);
-        handleGitHubAuth(codeParam).then(() => {
-          setProfile(true);
-          if (stateParam) {
-            navigate(stateParam, { replace: true });
-          } else {
-            navigate(window.location.pathname, { replace: true });
-          }
-        });
+        handleGitHubAuth(codeParam)
+          .then(() => {
+            setProfile(true);
+            if (stateParam) {
+              navigate(stateParam, { replace: true });
+            } else {
+              navigate(window.location.pathname, { replace: true });
+            }
+          })
+          .catch((error) => {
+            console.error("GitHub connection error:", error);
+          })
+          .finally(() => {
+            setIsConnectingGithub(false);
+            setIsLoadingGithubUserData(false);
+          });
       }
     }
-    
+
     // Check for LinkedIn data in localStorage that might have been set by handleLinkedInCallback
     const linkedInProfileData = localStorage.getItem("linkedInProfileData");
     if (linkedInProfileData) {
       try {
         const parsedData = JSON.parse(linkedInProfileData);
         setLinkedInDataWithStorage(parsedData);
-        
+
         // Update form with LinkedIn data
         if (parsedData.basicProfile) {
           if (!user?.firstName && parsedData.basicProfile.firstName) {
@@ -186,12 +202,13 @@ const ProfileCreation: React.FC = () => {
           if (parsedData.basicProfile.headline) {
             setValue("title", parsedData.basicProfile.headline);
           }
-          
+
           // Set profile picture if available
           if (parsedData.basicProfile.pictureUrl) {
             setProfilePicPreview(parsedData.basicProfile.pictureUrl);
-            
+
             // Fetch image as file for upload
+            setIsLoadingLinkedInAvatar(true);
             fetchImageAsFile(
               parsedData.basicProfile.pictureUrl,
               "profile-pic.jpg"
@@ -200,40 +217,57 @@ const ProfileCreation: React.FC = () => {
                 if (file) handleSetValue("profilePic", file);
               })
               .catch((error) => {
-                console.error("Error fetching LinkedIn profile picture:", error);
+                console.error(
+                  "Error fetching LinkedIn profile picture:",
+                  error
+                );
+              })
+              .finally(() => {
+                setIsLoadingLinkedInAvatar(false);
               });
           }
         }
-        
+
         // Remove from localStorage after using it
         localStorage.removeItem("linkedInProfileData");
       } catch (error) {
-        console.error("Error parsing LinkedIn profile data from localStorage:", error);
+        console.error(
+          "Error parsing LinkedIn profile data from localStorage:",
+          error
+        );
       }
     }
-    
+
     // Set profile picture from GitHub data if available
     if (githubData?.avatar_url && !profilePicPreview) {
       setProfilePicPreview(githubData.avatar_url);
-      
+
       // Fetch image as file for upload
-      fetchImageAsFile(
-        githubData.avatar_url,
-        "github-profile-pic.jpg"
-      )
+      setIsLoadingGithubAvatar(true);
+      fetchImageAsFile(githubData.avatar_url, "github-profile-pic.jpg")
         .then((file) => {
           if (file) handleSetValue("profilePic", file);
         })
         .catch((error) => {
           console.error("Error fetching GitHub profile picture:", error);
+        })
+        .finally(() => {
+          setIsLoadingGithubAvatar(false);
         });
     }
-    
+    if (githubData?.bio) {
+      const currentDescription = watch('descriptions');
+      if (!currentDescription) {
+        setValue('descriptions', githubData.bio);
+      }
+    }
+
     // Set profile picture from LinkedIn data if available
     if (linkedInData?.basicProfile?.pictureUrl && !profilePicPreview) {
       setProfilePicPreview(linkedInData.basicProfile.pictureUrl);
-      
+
       // Fetch image as file for upload
+      setIsLoadingLinkedInAvatar(true);
       fetchImageAsFile(
         linkedInData.basicProfile.pictureUrl,
         "linkedin-profile-pic.jpg"
@@ -243,57 +277,70 @@ const ProfileCreation: React.FC = () => {
         })
         .catch((error) => {
           console.error("Error fetching LinkedIn profile picture:", error);
+        })
+        .finally(() => {
+          setIsLoadingLinkedInAvatar(false);
         });
     }
   }, [navigate, setValue, user, githubData, linkedInData, profilePicPreview]);
 
   const handleGitHubAuth = async (code: string) => {
     try {
+      setIsConnectingGithub(true);
+      setIsLoadingGithubUserData(true);
       const accessToken = await fetchGitHubAccessToken(code);
       const userData = await fetchGitHubUserData(accessToken);
       setGithubDataWithStorage(userData);
 
       window.history.replaceState({}, document.title, window.location.pathname);
+      return userData;
     } catch (error) {
       console.error("Error in GitHub authentication process:", error);
+      throw error;
     } finally {
       setIsConnectingGithub(false);
+      // Keep isLoadingGithubUserData true until avatar is loaded in the useEffect
     }
   };
 
-  // Updated handleLinkedInAuth function to use the enhanced version
+  // Updated handleLinkedInAuth function with loading states
   const handleLinkedInAuth = async (code: string) => {
     try {
+      setIsConnectingLinkedIn(true);
+      setIsLoadingLinkedInUserData(true);
+
       // Get the access token
       const accessToken = await fetchLinkedInAccessToken(code);
-      
+
       // Fetch basic user data
       const userData = await fetchLinkedInUserData(accessToken);
-      
+
       // Try to fetch profile details, but don't rely on it
       let profileDetails = {};
       try {
         const response = await fetchLinkedInProfileDetails(accessToken);
         profileDetails = response;
       } catch (detailsError) {
-        console.log("LinkedIn profile details not available, continuing with basic data");
+        console.log(
+          "LinkedIn profile details not available, continuing with basic data"
+        );
       }
-      
+
       // Combine the data
       const combinedData = {
         ...userData,
-        ...profileDetails
+        ...profileDetails,
       };
-      
+
       // Process the data
       let processedData = processLinkedInDataForProfile(combinedData);
-      
+
       // Enhance the data with synthetic content where needed
       processedData = enhanceLinkedInData(processedData);
-      
+
       // Set the data in state with storage
       setLinkedInDataWithStorage(processedData);
-      
+
       // Update form fields with LinkedIn data
       if (processedData.basicProfile) {
         if (!user?.firstName && processedData.basicProfile.firstName) {
@@ -308,12 +355,13 @@ const ProfileCreation: React.FC = () => {
         if (processedData.basicProfile.headline) {
           setValue("title", processedData.basicProfile.headline);
         }
-        
+
         // If there's a LinkedIn profile picture, set it as profile pic preview
         if (processedData.basicProfile.pictureUrl) {
           setProfilePicPreview(processedData.basicProfile.pictureUrl);
-          
+
           // Fetch the image and convert to File for actual upload
+          setIsLoadingLinkedInAvatar(true);
           fetchImageAsFile(
             processedData.basicProfile.pictureUrl,
             "profile-pic.jpg"
@@ -323,19 +371,23 @@ const ProfileCreation: React.FC = () => {
             })
             .catch((error) => {
               console.error("Error fetching LinkedIn profile picture:", error);
+            })
+            .finally(() => {
+              setIsLoadingLinkedInAvatar(false);
             });
         }
       }
-      
+
       // Clean up the URL
       window.history.replaceState({}, document.title, window.location.pathname);
-      
+
       return processedData;
     } catch (error) {
       console.error("Error in LinkedIn authentication process:", error);
       throw error;
     } finally {
       setIsConnectingLinkedIn(false);
+      // Keep isLoadingLinkedInUserData true until avatar is loaded in the useEffect
     }
   };
 
@@ -348,6 +400,8 @@ const ProfileCreation: React.FC = () => {
   const handleSetValue = (name: string, value: File) => {
     setValue(name as keyof ICreateProfile, value as any);
   };
+  console.log("githubData",githubData)
+  console.log("linkedinData",linkedInData)
 
   const onSubmit = async (data: any) => {
     console.log("Submitting profile data:", data);
@@ -368,77 +422,110 @@ const ProfileCreation: React.FC = () => {
               : undefined,
           }
         : undefined;
-
+  
+      // Get LinkedIn data, ensuring it's enhanced with programming languages
+      let enhancedLinkedInData = linkedInData;
+      if (linkedInData) {
+        enhancedLinkedInData = enhanceLinkedInData(linkedInData);
+      }
+  
       // Create LinkedIn profile object with better error handling
-      const linkedinProfile = linkedInData
+      const linkedinProfile = enhancedLinkedInData
         ? {
-            profileUrl: linkedInData.basicProfile?.profileUrl || "",
-            headline: linkedInData.basicProfile?.headline || "",
-            experience: linkedInData.experience || [],
-            education: linkedInData.education || [],
-            skills: (linkedInData.skills || []).map((s: any) => s.name || "")
+            profileUrl: enhancedLinkedInData.basicProfile?.profileUrl || "",
+            headline: enhancedLinkedInData.basicProfile?.headline || "",
+            experience: enhancedLinkedInData.experience || [],
+            education: enhancedLinkedInData.education || [],
+            skills: (enhancedLinkedInData.skills || []).map((s: any) => s.name || ""),
+            // Add programming languages as a separate field
+            programmingLanguages: (enhancedLinkedInData.skills || [])
+              .filter((s: any) => {
+                const skillName = s.name?.toLowerCase() || "";
+                return [
+                  "javascript", "typescript", "python", "java", "c#", "php", "ruby", 
+                  "go", "rust", "swift", "kotlin", "c++", "c"
+                ].includes(skillName);
+              })
+              .map((s: any) => s.name || ""),
           }
         : undefined;
-
+  
       // Calculate reputation score using AI
       let reputationScore = 50; // Default score
       let reputationExplanation = "";
       let improvementSuggestions: any[] = [];
-
+  
       try {
-        // Enhance LinkedIn data before passing to reputation calculator if needed
-        const enhancedLinkedInData = linkedInData 
-          ? (linkedInData.skills && linkedInData.skills.length > 0 
-              ? linkedInData 
-              : enhanceLinkedInData(linkedInData))
-          : null;
-        
+        // Always use enhanced LinkedIn data for reputation calculation
         const aiReputationResult = await calculateReputationScoreWithAI(
           results,
           githubData,
           enhancedLinkedInData
         );
-
+  
         reputationScore = aiReputationResult.score;
         reputationExplanation = aiReputationResult.explanation;
         improvementSuggestions = aiReputationResult.suggestions || [];
       } catch (aiError) {
         console.error("Error getting AI reputation score:", aiError);
       }
-
+  
+      // Get all skills from different sources, removing duplicates (case-insensitive)
+      const allSkills = new Set();
+      
+      // Add skills from assessment results
+      (results?.strengths || []).forEach((skill: string) => 
+        allSkills.add(skill.toLowerCase()));
+      
+      // Add skills from LinkedIn
+      (enhancedLinkedInData?.skills || []).forEach((s: any) => {
+        if (s.name) allSkills.add(s.name.toLowerCase());
+      });
+      
+      // Convert back to array with proper casing
+      const uniqueSkills = Array.from(allSkills).map((skill: any) => {
+        // Try to find the original casing from LinkedIn skills
+        const linkedInSkill = (enhancedLinkedInData?.skills || []).find(
+          (s: any) => s.name?.toLowerCase() === skill
+        );
+        if (linkedInSkill?.name) return linkedInSkill.name;
+        
+        // Try to find the original casing from assessment strengths
+        const assessmentSkill = (results?.strengths || []).find(
+          (s: string) => s.toLowerCase() === skill
+        );
+        if (assessmentSkill) return assessmentSkill;
+        
+        // Default to the lowercase version
+        return skill;
+      });
+  
       // Create workExperience object with combined skills
       const workExperience = {
-        linkedin_link: linkedInData?.basicProfile?.profileUrl || "",
-        skills: [
-          ...(results?.strengths || []),
-          ...((linkedInData?.skills || []).map((s: any) => s.name || "")),
-        ],
-        experience: linkedInData?.experience || [],
+        linkedin_link: enhancedLinkedInData?.basicProfile?.profileUrl || "",
+        skills: uniqueSkills,
+        experience: enhancedLinkedInData?.experience || [],
       };
-
+  
       // Structure the data for profile creation
       const profileData = {
         ...data,
         developerInfo: {
-          skills: [
-            ...(results?.strengths || []),
-            ...((linkedInData?.skills || []).map((s: any) => s.name || "")),
-          ],
+          skills: uniqueSkills,
+          programmingLanguages: linkedinProfile?.programmingLanguages || [],
           reputationScore: reputationScore,
           level: results?.assignedLevel || "Beginner",
-          education: linkedInData?.education || [],
-
+          education: enhancedLinkedInData?.education || [],
+  
           githubProfile: githubProfile,
           linkedinProfile: linkedinProfile,
           workExperience: workExperience,
           portfolioUrl:
             githubData?.blog ||
-            linkedInData?.basicProfile?.profileUrl ||
+            enhancedLinkedInData?.basicProfile?.profileUrl ||
             undefined,
-          descriptions:
-            githubData?.bio ||
-            undefined,
-
+          descriptions: githubData?.bio || undefined,
+  
           reputationDetails: {
             explanation: reputationExplanation,
             improvementSuggestions: improvementSuggestions,
@@ -446,19 +533,18 @@ const ProfileCreation: React.FC = () => {
           },
         },
       };
-
+  
       console.log("Submitting profile data:", profileData);
       await createProfile(profileData);
-
+  
       // Clear stored data after successful profile creation
       localStorage.removeItem("assessmentResults");
       localStorage.removeItem("githubData");
       localStorage.removeItem("linkedInData");
-
+  
       const userData = getStoredUserData();
       if (userData) {
-        const profileUrl =
-          `/profile/${userData.lastName}-${userData.firstName}`.toLowerCase();
+        const profileUrl = `/profile`;
         navigate(profileUrl);
       }
     } catch (error) {
@@ -467,7 +553,6 @@ const ProfileCreation: React.FC = () => {
       setIsLoading(false);
     }
   };
-
   const fetchLanguages = async (languagesUrl: string): Promise<string[]> => {
     try {
       const response = await fetch(languagesUrl);
@@ -488,8 +573,40 @@ const ProfileCreation: React.FC = () => {
 
   // Update the LinkedIn connect button click handler
   const handleLinkedInConnect = () => {
+    setIsConnectingLinkedIn(true);
     connectWithLinkedIn();
   };
+
+  // Loading indicator component for better UX
+  const LoadingSpinner = ({
+    size = "small",
+  }: {
+    size?: "small" | "medium" | "large";
+  }) => {
+    const sizeClass = {
+      small: "w-4 h-4",
+      medium: "w-6 h-6",
+      large: "w-8 h-8",
+    }[size];
+
+    return (
+      <div className="flex justify-center items-center">
+        <div
+          className={`${sizeClass} border-t-2 border-b-2 border-gray-900 rounded-full animate-spin`}
+        ></div>
+      </div>
+    );
+  };
+
+  // Helper to determine if GitHub section is in any loading state
+  const isGithubLoading =
+    isConnectingGithub || isLoadingGithubUserData || isLoadingGithubAvatar;
+
+  // Helper to determine if LinkedIn section is in any loading state
+  const isLinkedInLoading =
+    isConnectingLinkedIn ||
+    isLoadingLinkedInUserData ||
+    isLoadingLinkedInAvatar;
 
   return (
     <div
@@ -501,10 +618,11 @@ const ProfileCreation: React.FC = () => {
         <>
           <ProgrammingAssessment
             setEvaluationResult={(newResults) => {
-              if (newResults) {
+              //@ts-ignore
+              if (newResults && newResults.passed === true) {
                 setResultsWithStorage(newResults as EvaluationResult);
+                setProfile(true);
               }
-              setProfile(true);
             }}
             setProfile={setProfile}
           />
@@ -522,7 +640,21 @@ const ProfileCreation: React.FC = () => {
           {/* Social Integration Section */}
           <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* GitHub Connection */}
-            <div className="p-4 border border-gray-200 rounded-lg">
+            <div className="p-4 border border-gray-200 rounded-lg relative">
+              {/* Loading overlay for GitHub section */}
+              {isGithubLoading && (
+                <div className="absolute inset-0 bg-white bg-opacity-70 flex flex-col items-center justify-center z-10 rounded-lg">
+                  <LoadingSpinner size="medium" />
+                  <p className="mt-2 text-sm text-gray-600">
+                    {isConnectingGithub
+                      ? "Connecting to GitHub..."
+                      : isLoadingGithubUserData
+                      ? "Fetching GitHub data..."
+                      : "Loading profile picture..."}
+                  </p>
+                </div>
+              )}
+
               {!githubData ? (
                 <div className="flex flex-col items-center justify-center gap-4">
                   <h2 className="text-lg font-medium">Connect with GitHub</h2>
@@ -534,6 +666,7 @@ const ProfileCreation: React.FC = () => {
                     isLoading={isConnectingGithub}
                     loadingText="Connecting..."
                     onClick={() => {
+                      setIsConnectingGithub(true);
                       const state = window.location.pathname;
                       window.location.href = `https://github.com/login/oauth/authorize?client_id=${
                         (import.meta as any).env.VITE_CLIENT_ID
@@ -576,9 +709,22 @@ const ProfileCreation: React.FC = () => {
                 </div>
               )}
             </div>
-
             {/* LinkedIn Connection */}
-            <div className="p-4 border border-gray-200 rounded-lg">
+            <div className="p-4 border border-gray-200 rounded-lg relative">
+              {/* Loading overlay for LinkedIn section */}
+              {isLinkedInLoading && (
+                <div className="absolute inset-0 bg-white bg-opacity-70 flex flex-col items-center justify-center z-10 rounded-lg">
+                  <LoadingSpinner size="medium" />
+                  <p className="mt-2 text-sm text-gray-600">
+                    {isConnectingLinkedIn
+                      ? "Connecting to LinkedIn..."
+                      : isLoadingLinkedInUserData
+                      ? "Fetching LinkedIn data..."
+                      : "Loading profile picture..."}
+                  </p>
+                </div>
+              )}
+
               {!linkedInData ? (
                 <div className="flex flex-col items-center justify-center gap-4">
                   <h2 className="text-lg font-medium">Connect with LinkedIn</h2>
@@ -623,10 +769,14 @@ const ProfileCreation: React.FC = () => {
                         "LinkedIn connected"}
                     </p>
                     {linkedInData.skills && linkedInData.skills.length > 0 && (
-                      <div className="flex gap-2 mt-1">
+                      <div className="flex flex-col gap-2 mt-1">
+                        skills
+                        {linkedInData.skills.map((skill:any)=>(
                         <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                          {linkedInData.skills.length} Skills
+                          {skill.name},Angular,etc...
                         </span>
+                        ))
+}
                       </div>
                     )}
                   </div>
@@ -634,7 +784,6 @@ const ProfileCreation: React.FC = () => {
               )}
             </div>
           </div>
-
           {/* Display assessment results */}
           {results && (
             <div className="mb-8 p-4 bg-gray-50 border border-gray-200 rounded-lg">

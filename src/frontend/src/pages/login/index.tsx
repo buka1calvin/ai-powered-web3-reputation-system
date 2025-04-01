@@ -42,7 +42,7 @@ const Login = () => {
           if (profile) {
             const userData = getStoredUserData();
             const profileUrl =
-              `/profile/${userData.lastName}-${userData.firstName}`.toLowerCase();
+              `/profile`.toLowerCase();
             navigate(profileUrl);
           }
         } catch (error: any) {

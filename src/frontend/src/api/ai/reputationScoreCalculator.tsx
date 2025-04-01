@@ -4,15 +4,6 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const API_KEY = (import.meta as any).env.VITE_GEMINI_API_KEY;
 export const genAI = new GoogleGenerativeAI(API_KEY);
 
-/**
- * Calculate reputation score using Gemini AI
- * Modified to handle potentially limited LinkedIn data
- * 
- * @param assessmentResults - The programming assessment results
- * @param githubData - GitHub profile data
- * @param linkedinData - LinkedIn profile data (might be limited or null)
- * @returns The calculated reputation score and explanation
- */
 export const calculateReputationScoreWithAI = async (
   assessmentResults: any,
   githubData: any,
@@ -107,14 +98,7 @@ export const calculateReputationScoreWithAI = async (
   }
 };
 
-/**
- * Creates a fallback reputation score when the AI calculation fails
- * 
- * @param assessmentResults - The programming assessment results
- * @param githubData - GitHub profile data
- * @param linkedinData - LinkedIn profile data
- * @returns A calculated reputation score with explanation and suggestions
- */
+
 const createFallbackReputationScore = (
   assessmentResults: any,
   githubData: any,
@@ -211,11 +195,8 @@ const createFallbackReputationScore = (
   } else {
     suggestions.push("Connect your LinkedIn profile to improve your score");
   }
-  
-  // Ensure score is within 0-100 range
+
   score = Math.max(0, Math.min(100, score));
-  
-  // Ensure we have at least 3 suggestions
   if (suggestions.length < 3) {
     const genericSuggestions = [
       "Regularly contribute to open-source projects on GitHub",
@@ -242,22 +223,14 @@ const createFallbackReputationScore = (
   };
 };
 
-/**
- * Helper function to extract relevant information from LinkedIn API response
- * 
- * @param rawLinkedinData - Raw response from LinkedIn API
- * @returns Processed LinkedIn data for reputation scoring
- */
 export const processLinkedinData = (rawLinkedinData: any) => {
   if (!rawLinkedinData) return null;
   
   try {
-    // If the data already has the right structure, return it
     if (rawLinkedinData.basicProfile) {
       return rawLinkedinData;
     }
-    
-    // Extract the most relevant information for reputation scoring
+
     return {
       basicProfile: {
         firstName: rawLinkedinData.given_name || rawLinkedinData.firstName || "",

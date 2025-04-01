@@ -42,12 +42,22 @@ interface EvaluationResult {
   title: string;
 }
 
+export interface Technology {
+  value: string;
+  label: string;
+}
+
 export const generateAssessment = async (
   category: string,
-  title: string
+  title: string,
+  technologies: string[] = []
 ): Promise<Assessment> => {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    
+    const technologiesText = technologies.length > 0 
+      ? `The assessment should focus specifically on these technologies: ${technologies.join(', ')}.` 
+      : 'Include a balanced mix of relevant technologies for this role.';
 
     const prompt = `Create a programming assessment ${title} for a ${category} level programmer.
      
@@ -56,12 +66,13 @@ export const generateAssessment = async (
     2. Each question should have a unique id
     3. Some questions should include code snippets to analyze
     4. The assessment should be challenging but fair
+    ${technologiesText}
     
     Format the response as a JSON object with this structure:
     {
       "id": "unique-assessment-id",
       "level": "${category}",
-      "title": "${title},
+      "title": "${title}",
       "timeLimit": 30, // time in minutes
       "questions": [
         {
@@ -106,7 +117,8 @@ export const evaluateAssessment = async (
   title: string,
   assessmentId: string,
   answers: UserAnswer[],
-  cheatingDetected: boolean
+  cheatingDetected: boolean,
+  technologies: string[] = []
 ): Promise<EvaluationResult> => {
   try {
     if (cheatingDetected) {
@@ -114,7 +126,7 @@ export const evaluateAssessment = async (
         score: 0,
         title,
         passed: false,
-        assignedLevel: "Failed",
+        assignedLevel: "Beginner",
         cheatingDetected: true,
         feedback: "Assessment invalidated due to detected cheating behavior.",
         strengths: [],
@@ -129,9 +141,15 @@ export const evaluateAssessment = async (
     }
 
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    
+    const technologiesText = technologies.length > 0 
+      ? `The assessment focused specifically on these technologies: ${technologies.join(', ')}.` 
+      : '';
+
     const prompt = `You are evaluating a programming assessment ${title} for a ${category} level programmer.
     
     Assessment ID: ${assessmentId}
+    ${technologiesText}
     
     Here are the user's answers:
     ${JSON.stringify(answers, null, 2)}
@@ -141,13 +159,13 @@ export const evaluateAssessment = async (
     2. Whether they passed based on these criteria:
        - Pro level requires 90% score
        - Intermediate level requires 80% or higher
-       - Below 80% is a fail which totally beginner
+       - Below 80% is a beginner level (all scores 0 or above result in at least beginner level)
     3. Their assigned level based on their performance, ${title} and the chosen category (${category})
     4. Brief overall feedback
     5. Strengths (list of 3-5 points)
     6. Weaknesses (list of 3-5 points)
     7. Learning resources (list of 3-5 relevant resources with titles and URLs)
-    8. If score did not reach to the score we described in order to pass status of passed should be false
+    8. Note: There is no "Failed" level - any score 0 or above should be at minimum "Beginner" level
     Format the response as a JSON object with this structure:
     {
       "score": 85,
@@ -186,6 +204,7 @@ export const evaluateAssessment = async (
       throw new Error("Failed to evaluate assessment");
     }
 
+    // Modified logic to ensure no "Failed" level and any score >= 0 is at least "Beginner"
     if (category === "pro") {
       if (evaluationData.score >= 90) {
         evaluationData.assignedLevel = "Pro";
@@ -206,9 +225,11 @@ export const evaluateAssessment = async (
         evaluationData.passed = false;
       }
     } else {
+      // For beginner category or any other category
       evaluationData.assignedLevel = "Beginner";
       evaluationData.passed = true;
     }
+    
     evaluationData.title = title;
 
     return evaluationData;
@@ -217,7 +238,6 @@ export const evaluateAssessment = async (
     throw error as Error;
   }
 };
-
 export const analyzeAttention = async (
   imageBlob: Blob
 ): Promise<AttentionAnalysisResult> => {
@@ -306,5 +326,50 @@ export const analyzeAttention = async (
       confidenceScore: 100,
       reasons: [],
     };
+  }
+};
+
+export const generateTechnologies = async (title: string): Promise<Technology[]> => {
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    const prompt = `Generate a list of 8-12 relevant technologies, programming languages, or frameworks that a ${title} might be proficient in.
+
+    Format the response as a JSON array with this structure:
+    [
+      {
+        "value": "technology-name",
+        "label": "Technology Name"
+      }
+    ]
+    
+    Each technology should be relevant to the ${title} role. Make sure the values are lowercase, hyphenated versions of the labels.`;
+
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
+
+    const jsonMatch = 
+      text.match(/```json\n([\s\S]*?)\n```/) || 
+      text.match(/```\n([\s\S]*?)\n```/) || 
+      text.match(/\[([\s\S]*?)\]/) ||
+      text.match(/\[[\s\S]*\]/);
+
+    let technologies: Technology[];
+    if (jsonMatch) {
+      try {
+        technologies = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+      } catch (e) {
+        console.error("Failed to parse JSON:", e);
+        throw new Error("Failed to generate technologies");
+      }
+    } else {
+      throw new Error("Failed to generate technologies");
+    }
+
+    return technologies;
+  } catch (error) {
+    console.error("Error generating technologies:", error);
+    throw error;
   }
 };

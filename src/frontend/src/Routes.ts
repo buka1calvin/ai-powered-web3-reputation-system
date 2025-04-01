@@ -7,6 +7,7 @@ import Login from "./pages/login";
 import RecruiterProfileCreation from "./pages/profile/CreateProfileRecruiter";
 import ProfileCreation from "./pages/profile/creatProfile";
 import Profile from "./pages/profile/Profile";
+import PublicProfilePage from "./pages/profile/PublicProfile";
 import SearchResults from "./pages/profile/SearchResults";
 import Signup from "./pages/signup";
 import { RouteConfig } from "./types/routes/ route";
@@ -30,8 +31,8 @@ const routes: RouteConfig[] = [
         allowedRoles: ["developer", "recruiter"],
       },
       {
-        path: "/profile/:name",
-        element: Profile,
+        path: "/profile/:username",
+        element:PublicProfilePage,
         protected: false,
         allowedRoles: ["developer", "recruiter"],
       },

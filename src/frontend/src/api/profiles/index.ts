@@ -4,6 +4,24 @@ import { getStoredUserData } from "../signin";
 import toast from "react-hot-toast";
 
 import { uploadToCloudinary } from "../../utils/uploadImg";
+import { UserProfile } from "../../types/profile";
+
+
+interface SearchFilters {
+  role?: string;
+  skills?: string;
+  experienceMin?: string;
+  location?: string;
+}
+
+interface SearchResponse {
+  success: boolean;
+  profiles?: UserProfile[];
+  message?: string;
+  page?: number;
+  totalProfiles?: number;
+  totalPages?: number;
+}
 
 export const createProfile = async (data: any): Promise<any> => {
   try {
@@ -80,9 +98,15 @@ export const getProfile = async (): Promise<any> => {
 };
 
 
-export const getProfileByName = async (name:string) => {
+export const getProfileByName = async (name: string) => {
   try {
-    const response = await fetch(`${(import.meta as any).env.VITE_CANISTER_ORIGIN}/profiles/public/${name}`);
+    const response = await fetch(`${(import.meta as any).env.VITE_CANISTER_ORIGIN}/profiles/public`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name })
+    });
     return await response.json();
   } catch (error) {
     console.error("Error fetching profile by name:", error);
@@ -90,25 +114,34 @@ export const getProfileByName = async (name:string) => {
   }
 };
 
-// Search users
-export const searchUsers = async (query:any, filters:any = {}) => {
+export const searchUsers = async (query: string, filters: SearchFilters = {}): Promise<SearchResponse> => {
   try {
-    // Build query string from filters
-    const queryParams = new URLSearchParams();
+    const requestBody: Record<string, any> = {
+
+      ...(query && { name: query }),
+      
+      
+      role: "developer",
+      ...(filters.skills && { skills: filters.skills }),
+      ...(filters.experienceMin && { experienceMin: filters.experienceMin }),
+      ...(filters.location && { district: filters.location }),
+      
+      page: 1,
+      limit: 10
+    };
     
-    // Add search query if present
-    if (query) {
-      queryParams.append('name', query);
-    }
+    const response = await fetch(
+      `${(import.meta as any).env.VITE_CANISTER_ORIGIN}/profiles/search`, 
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      }
+    );
     
-    // Add filters
-    if (filters.role) queryParams.append('role', filters.role);
-    if (filters.skills) queryParams.append('skills', filters.skills);
-    if (filters.experienceMin) queryParams.append('experienceMin', filters.experienceMin);
-    if (filters.location) queryParams.append('location', filters.location);
-    
-    const response = await fetch(`${(import.meta as any).env.VITE_CANISTER_ORIGIN}/profiles/search?${queryParams.toString()}`);
-    return await response.json();
+    return await response.json() as SearchResponse;
   } catch (error) {
     console.error("Error searching users:", error);
     return { success: false, message: "Failed to search users" };

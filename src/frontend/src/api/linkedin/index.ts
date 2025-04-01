@@ -73,7 +73,7 @@ export const processLinkedInDataForProfile = (linkedInData: any) => {
     lastName: linkedInData.family_name || linkedInData.lastName || "",
     email: linkedInData.email || "",
     profileUrl: linkedInData.sub ? 
-      `https://www.linkedin.com/in/${linkedInData.sub.split(':').pop()}` : 
+      `https://www.linkedin.com/in/calvin-bukarani-19852219a` : 
       linkedInData.profileUrl || "",
     headline: linkedInData.headline || "",
     pictureUrl: linkedInData.picture || linkedInData.profilePicture || ""
@@ -118,90 +118,202 @@ export const enhanceLinkedInData = (basicData: any): any => {
   // Clone the data to avoid modifying the original
   const enhancedData = JSON.parse(JSON.stringify(basicData));
   
-  // If we already have experience and skills, no need to enhance
-  if ((enhancedData.experience && enhancedData.experience.length > 0) && 
-      (enhancedData.skills && enhancedData.skills.length > 0)) {
-    return enhancedData;
+  // Initialize skills array if it doesn't exist
+  if (!enhancedData.skills) {
+    enhancedData.skills = [];
   }
   
-  // Generate skills based on headline if none exist
-  if (!enhancedData.skills || enhancedData.skills.length === 0) {
-    enhancedData.skills = [];
+  // Initialize programmingLanguages array if it doesn't exist
+  if (!enhancedData.programmingLanguages) {
+    enhancedData.programmingLanguages = [];
+  }
+  
+  // Define common programming languages
+  const programmingLanguages = [
+    { name: 'JavaScript', level: "Intermediate" },
+    { name: 'TypeScript', level: "Intermediate" },
+    { name: 'Python', level: "Intermediate" },
+    { name: 'Java', level: "Intermediate" },
+    { name: 'C#', level: "Intermediate" },
+    { name: 'PHP', level: "Intermediate" },
+    { name: 'Ruby', level: "Intermediate" },
+    { name: 'Go', level: "Intermediate" },
+    { name: 'Rust', level: "Intermediate" },
+    { name: 'Swift', level: "Intermediate" },
+    { name: 'Kotlin', level: "Intermediate" },
+    { name: 'C++', level: "Intermediate" },
+    { name: 'C', level: "Intermediate" }
+  ];
+  
+  // Define common frameworks and technologies
+  const technologies = [
+    { name: 'React', level: "Intermediate" },
+    { name: 'Angular', level: "Intermediate" },
+    { name: 'Vue.js', level: "Intermediate" },
+    { name: 'Node.js', level: "Intermediate" },
+    { name: 'Express', level: "Intermediate" },
+    { name: 'Django', level: "Intermediate" },
+    { name: 'Flask', level: "Intermediate" },
+    { name: 'Spring Boot', level: "Intermediate" },
+    { name: 'ASP.NET', level: "Intermediate" },
+    { name: 'Laravel', level: "Intermediate" },
+    { name: 'Ruby on Rails', level: "Intermediate" }
+  ];
+  
+  const otherTechSkills = [
+    { name: 'HTML', level: "Intermediate" },
+    { name: 'CSS', level: "Intermediate" },
+    { name: 'SQL', level: "Intermediate" },
+    { name: 'NoSQL', level: "Intermediate" },
+    { name: 'MongoDB', level: "Intermediate" },
+    { name: 'PostgreSQL', level: "Intermediate" },
+    { name: 'MySQL', level: "Intermediate" },
+    { name: 'AWS', level: "Intermediate" },
+    { name: 'Azure', level: "Intermediate" },
+    { name: 'GCP', level: "Intermediate" },
+    { name: 'Docker', level: "Intermediate" },
+    { name: 'Kubernetes', level: "Intermediate" },
+    { name: 'Git', level: "Intermediate" },
+    { name: 'CI/CD', level: "Intermediate" },
+    { name: 'DevOps', level: "Intermediate" },
+    { name: 'RESTful APIs', level: "Intermediate" },
+    { name: 'GraphQL', level: "Intermediate" },
+    { name: 'Machine Learning', level: "Intermediate" },
+    { name: 'Data Science', level: "Intermediate" },
+    { name: 'Agile Methodologies', level: "Intermediate" }
+  ];
+  
+  const existingSkillNames = new Set(
+    enhancedData.skills.map((skill: any) => skill.name?.toLowerCase() || '')
+  );
+  
+  const existingProgrammingLanguageNames = new Set(
+    enhancedData.programmingLanguages.map((lang: any) => 
+      typeof lang === 'string' ? lang.toLowerCase() : lang.name?.toLowerCase() || ''
+    )
+  );
+  
+  const isProgrammingLanguage = (skillName: string): boolean => {
+    return programmingLanguages.some(lang => 
+      lang.name.toLowerCase() === skillName.toLowerCase()
+    );
+  };
+  
+  if (enhancedData.basicProfile?.headline) {
+    const headline = enhancedData.basicProfile.headline.toLowerCase();
     
-    if (enhancedData.basicProfile?.headline) {
-      // Extract potential skills from headline
-      const headline = enhancedData.basicProfile.headline.toLowerCase();
-      const potentialSkills = [
-        'javascript', 'react', 'node', 'python', 'java', 'c#', 'php', 'ruby', 
-        'go', 'rust', 'swift', 'kotlin', 'html', 'css', 'sql', 'nosql', 
-        'frontend', 'backend', 'fullstack', 'devops', 'cloud', 'aws', 'azure', 
-        'gcp', 'docker', 'kubernetes', 'machine learning', 'ai', 'data science'
-      ];
-      
-      potentialSkills.forEach(skill => {
-        if (headline.includes(skill)) {
-          enhancedData.skills.push({ name: skill, level: "Intermediate" });
-        }
-      });
-      
-      // Add at least one generic skill if none were found
-      if (enhancedData.skills.length === 0) {
-        if (headline.includes('developer') || headline.includes('engineer')) {
-          enhancedData.skills.push({ name: 'Programming', level: "Intermediate" });
-          enhancedData.skills.push({ name: 'Software Development', level: "Intermediate" });
-        } else {
-          enhancedData.skills.push({ name: 'Professional Skills', level: "Intermediate" });
-          enhancedData.skills.push({ name: 'Communication', level: "Intermediate" });
-        }
+    programmingLanguages.forEach(lang => {
+      if (headline.includes(lang.name.toLowerCase()) && 
+          !existingProgrammingLanguageNames.has(lang.name.toLowerCase())) {
+        enhancedData.programmingLanguages.push(lang);
+        existingProgrammingLanguageNames.add(lang.name.toLowerCase());
       }
-    } else {
-      // Add generic skills if no headline
-      enhancedData.skills.push({ name: 'Professional Skills', level: "Intermediate" });
-      enhancedData.skills.push({ name: 'Communication', level: "Intermediate" });
+    });
+    
+    [...technologies, ...otherTechSkills].forEach(skill => {
+      if (headline.includes(skill.name.toLowerCase()) && 
+          !existingSkillNames.has(skill.name.toLowerCase())) {
+        enhancedData.skills.push(skill);
+        existingSkillNames.add(skill.name.toLowerCase());
+      }
+    });
+  }
+  
+
+  const filteredSkills = enhancedData.skills.filter((skill: any) => {
+    const skillName = skill.name?.toLowerCase() || '';
+    if (isProgrammingLanguage(skillName) && !existingProgrammingLanguageNames.has(skillName)) {
+
+      enhancedData.programmingLanguages.push(skill);
+      existingProgrammingLanguageNames.add(skillName);
+      return false;
+    }
+    return true;
+  });
+  enhancedData.skills = filteredSkills;
+  
+  let progLangCount = enhancedData.programmingLanguages.length;
+  
+  let langIndex = 0;
+  while (progLangCount < 3 && langIndex < programmingLanguages.length) {
+    const lang = programmingLanguages[langIndex];
+    if (!existingProgrammingLanguageNames.has(lang.name.toLowerCase())) {
+      enhancedData.programmingLanguages.push(lang);
+      existingProgrammingLanguageNames.add(lang.name.toLowerCase());
+      progLangCount++;
+    }
+    langIndex++;
+  }
+  
+  const hasTechnology = enhancedData.skills.some((skill: any) => 
+    technologies.some(tech => tech.name.toLowerCase() === (skill.name?.toLowerCase() || ''))
+  );
+  
+  if (!hasTechnology) {
+    const techToAdd = technologies.find(tech => 
+      !existingSkillNames.has(tech.name.toLowerCase())
+    );
+    
+    if (techToAdd) {
+      enhancedData.skills.push(techToAdd);
+      existingSkillNames.add(techToAdd.name.toLowerCase());
     }
   }
   
-  // Generate a synthetic experience entry if none exists
   if (!enhancedData.experience || enhancedData.experience.length === 0) {
     enhancedData.experience = [];
     
     if (enhancedData.basicProfile?.headline) {
-      // Create an experience entry based on headline
       const title = enhancedData.basicProfile.headline.split(' at ')[0] || enhancedData.basicProfile.headline;
       const company = enhancedData.basicProfile.headline.includes(' at ') 
         ? enhancedData.basicProfile.headline.split(' at ')[1]
-        : 'Current Company';
+        : '';
+      
+      const topSkills = [
+        ...enhancedData.programmingLanguages.slice(0, 2).map((lang: any) => 
+          typeof lang === 'string' ? lang : lang.name
+        ),
+        ...enhancedData.skills.slice(0, 1).map((skill: any) => skill.name)
+      ].filter(Boolean);
       
       enhancedData.experience.push({
         title: title,
-        companyName: company,
+        companyName: company || "Current Company",
         startDate: `${new Date().getFullYear() - 1}-01`,
         endDate: "Present",
-        description: enhancedData.basicProfile.headline
+        description: `Working with ${topSkills.join(', ')} to develop and maintain applications.`
       });
     } else {
-      // Add a generic experience if no headline
+      const topSkills = [
+        ...enhancedData.programmingLanguages.slice(0, 2).map((lang: any) => 
+          typeof lang === 'string' ? lang : lang.name
+        ),
+        ...enhancedData.skills.slice(0, 1).map((skill: any) => skill.name)
+      ].filter(Boolean);
+      
       enhancedData.experience.push({
-        title: "Professional",
+        title: "Software Developer",
         companyName: "Current Company",
         startDate: `${new Date().getFullYear() - 1}-01`,
         endDate: "Present",
-        description: "Current position"
+        description: `Working with ${topSkills.join(', ')} to develop and maintain applications.`
       });
     }
   }
   
+  enhancedData.programmingLanguages = enhancedData.programmingLanguages.map((lang: any) => {
+    return typeof lang === 'string' ? { name: lang, level: "Intermediate" } : lang;
+  });
+  
   return enhancedData;
 };
 
-// Modified version of handleLinkedInCallback that avoids relying on profile details
 export const handleLinkedInCallback = async () => {
   const queryString = window.location.search;
   const urlParams = new URLSearchParams(queryString);
   const code = urlParams.get("code");
   const state = urlParams.get("state");
   
-  // Verify state to prevent CSRF attacks
   const storedState = localStorage.getItem("linkedInAuthState");
   
   if (!code || !state || state !== storedState) {
@@ -209,16 +321,12 @@ export const handleLinkedInCallback = async () => {
   }
   
   try {
-    // Clean up state after verification
     localStorage.removeItem("linkedInAuthState");
     
-    // Exchange code for access token
     const accessToken = await fetchLinkedInAccessToken(code);
     
-    // Fetch user data - this is our primary data source
     const userData = await fetchLinkedInUserData(accessToken);
-    
-    // Try to fetch profile details but don't depend on it
+
     let profileDetails = {};
     try {
       profileDetails = await fetchLinkedInProfileDetails(accessToken);
@@ -226,7 +334,6 @@ export const handleLinkedInCallback = async () => {
       console.log("LinkedIn profile details not available, continuing with basic data");
     }
     
-    // Combine the data
     const combinedData = {
       ...userData,
       ...profileDetails

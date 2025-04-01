@@ -7,7 +7,7 @@ interface ButtonProps {
 const ButtonOne: FC<ButtonProps> = ({ title, className }) => {
   return (
     <Link
-      to={`#_`}
+      to={`/search`}
       className={`${className} relative inline-flex items-center justify-center p-4 px-5 py-3 overflow-hidden font-medium transition duration-300 ease-out rounded-full shadow-xl group hover:ring-1 hover:ring-range-300`}
     >
       <span className="absolute inset-0 w-full h-full bg-gradient-to-br from-blue-700 via-blue-600 to-blue-700"></span>

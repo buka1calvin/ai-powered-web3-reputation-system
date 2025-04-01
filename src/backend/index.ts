@@ -3,7 +3,7 @@ import { StableBTreeMap, Principal } from "azle";
 import express from "express";
 import cors from "cors";
 import bcrypt from "bcryptjs";
-import "dotenv/config"
+// import "dotenv/config"
 
 import { User, UserProfile, UserRole } from "./types/types";
 import { validateDeveloperInfo, validateRecruiterInfo } from "./utility";
@@ -331,7 +331,7 @@ app.post("/getAccessToken", async (req: any, res: any) => {
       },
       body: JSON.stringify({
         client_id: "Ov23liUnpwgIXQJ3TCkg",
-        client_secret: process.env.CLIENT_SECRET,
+        client_secret: "4240e1296dd67a298e51e7fa15a6685dac3a4233",
         code: code
       })
     });
@@ -381,7 +381,7 @@ app.post("/getUserData", async (req: any, res: any) => {
   }
 });
 
-app.post("/getLinkedInAccessToken", async (req, res) => {
+app.post("/getLinkedInAccessToken", async (req:any, res:any) => {
   try {
     const { code } = req.body;
     
@@ -394,7 +394,7 @@ app.post("/getLinkedInAccessToken", async (req, res) => {
       `grant_type=authorization_code&` +
       `code=${encodeURIComponent(code)}&` +
       `client_id=779arcfohtj76f&` +
-      `client_secret=${encodeURIComponent(process.env.LINKEDIN_SECRET || "")}&` +
+      `client_secret=${encodeURIComponent("WPL_AP1.Rz5Flw6Piv9Bw7UF.R38r7g==")}&` +
       `redirect_uri=${encodeURIComponent("http://localhost:5173/auth/linkedin/callback")}`;
     
     // Log for debugging
@@ -515,7 +515,7 @@ app.post("/getLinkedInProfileDetails", async (req: any, res: any) => {
   }
 });
 // Search profiles (public)
-app.get("/profiles/search", (req, res) => {
+app.post("/profiles/search", (req, res) => {
   try {
     const {
       role,
@@ -525,17 +525,17 @@ app.get("/profiles/search", (req, res) => {
       location,
       page = 1,
       limit = 10,
-    } = req.query;
-
+    } = req.body; // Changed from req.query to req.body
+    
     // Filter profiles based on search criteria
     let filteredProfiles = Array.from(userProfiles.values());
-
+    
     if (role) {
       filteredProfiles = filteredProfiles.filter(
         (profile) => profile.role === role
       );
     }
-
+    
     if (location) {
       filteredProfiles = filteredProfiles.filter(
         (profile) =>
@@ -547,7 +547,7 @@ app.get("/profiles/search", (req, res) => {
             .includes(location.toString().toLowerCase())
       );
     }
-
+    
     if (skills && role === UserRole.DEVELOPER) {
       const skillsArray = skills.toString().toLowerCase().split(",");
       filteredProfiles = filteredProfiles.filter((profile) =>
@@ -556,7 +556,7 @@ app.get("/profiles/search", (req, res) => {
         )
       );
     }
-
+    
     if (experienceMin && role === UserRole.DEVELOPER) {
       filteredProfiles = filteredProfiles.filter(
         (profile) =>
@@ -564,11 +564,20 @@ app.get("/profiles/search", (req, res) => {
           profile.developerInfo.experience >= Number(experienceMin)
       );
     }
-
+    
+    // Name search functionality
+    if (name) {
+      filteredProfiles = filteredProfiles.filter(
+        (profile) =>
+          profile.firstName.toLowerCase().includes(name.toString().toLowerCase()) ||
+          profile.lastName.toLowerCase().includes(name.toString().toLowerCase())
+      );
+    }
+    
     // Apply pagination
     const startIndex = (Number(page) - 1) * Number(limit);
     const endIndex = Number(page) * Number(limit);
-
+    
     // Create safe public profiles (omitting sensitive info)
     const paginatedProfiles = filteredProfiles
       .slice(startIndex, endIndex)
@@ -580,6 +589,7 @@ app.get("/profiles/search", (req, res) => {
         profilePic: profile.profilePic,
         country: profile.country,
         city: profile.city,
+        title: profile.title, // Added title for display in search results
         // Include role-specific public info
         ...(profile.role === UserRole.DEVELOPER && {
           developerInfo: {
@@ -599,7 +609,7 @@ app.get("/profiles/search", (req, res) => {
           },
         }),
       }));
-
+    
     return res.json({
       success: true,
       page: Number(page),
@@ -617,86 +627,61 @@ app.get("/profiles/search", (req, res) => {
 });
 
 // Public profile route - can be accessed using firstName and lastName
-app.get("/profiles/public/:name", async (req, res) => {
+app.post("/profiles/public", async (req, res) => {
   try {
-    const { name } = req.params;
+    const { name } = req.body;
+    console.log("Looking for profile with name:", name);
     
-    // Handle hyphenated names (e.g., "john-doe")
-    let firstName:any, lastName:any;
-    if (name.includes("-")) {
-      [firstName, lastName] = name.split("-").map(part => 
-        part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
-      );
-    } else {
-      // If no hyphen, consider it as just a firstName search
-      firstName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+    let matchingProfiles;
+    
+    matchingProfiles = Array.from(userProfiles.values()).filter(profile => {
+      const fullName = `${profile.firstName} ${profile.lastName}`.toLowerCase();
+      const hyphenName = `${profile.firstName}-${profile.lastName}`.toLowerCase();
+      
+      return fullName === name.toLowerCase() || 
+             hyphenName === name.toLowerCase();
+    });
+    if (matchingProfiles.length === 0) {
+      let firstName: any, lastName: any;
+      
+      if (name.includes("-")) {
+        [firstName, lastName] = name.split("-").map((part:any) =>
+           part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+        );
+      } else {
+        firstName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+      }
+      
+      matchingProfiles = Array.from(userProfiles.values()).filter(profile => {
+        if (lastName) {
+          return profile.firstName.toLowerCase() === firstName.toLowerCase() &&
+                 profile.lastName.toLowerCase() === lastName.toLowerCase();
+        } else {
+          return profile.firstName.toLowerCase() === firstName.toLowerCase();
+        }
+      });
     }
     
-    // Find profiles matching the name
-    let matchingProfiles = Array.from(userProfiles.values()).filter(profile => {
-      if (lastName) {
-        // Both first and last name provided
-        return profile.firstName.toLowerCase() === firstName.toLowerCase() && 
-               profile.lastName.toLowerCase() === lastName.toLowerCase();
-      } else {
-        // Only firstName provided
-        return profile.firstName.toLowerCase() === firstName.toLowerCase();
-      }
-    });
+    console.log(`Found ${matchingProfiles.length} matching profiles`);
     
     if (matchingProfiles.length === 0) {
+      console.log("Available profiles:", 
+        Array.from(userProfiles.values()).map(p => 
+          `${p.firstName} ${p.lastName}`
+        )
+      );
+      
       return res.status(404).json({
         success: false,
         message: "Profile not found"
       });
     }
     
-    // Return the first matching profile (or could add logic to handle multiple matches)
-    const publicProfile:any = matchingProfiles[0];
-    
-    // Create safe public profile (omitting sensitive info)
-    const safePublicProfile = {
-      id: publicProfile.id,
-      firstName: publicProfile.firstName,
-      lastName: publicProfile.lastName,
-      title: publicProfile.title,
-      country: publicProfile.country,
-      district: publicProfile.district,
-      province: publicProfile.province,
-      profilePic: publicProfile.profilePic,
-      coverPic: publicProfile.coverPic,
-      gender: publicProfile.gender,
-      role: publicProfile.role,
-      joinedDate: publicProfile.joinedDate,
-      lastActive: publicProfile.lastActive,
-      // Include role-specific public info
-      ...(publicProfile.role === "DEVELOPER" && {
-        developerInfo: {
-          skills: publicProfile.developerInfo?.skills,
-          experience: publicProfile.developerInfo?.experience,
-          level: publicProfile.developerInfo?.level,
-          reputationScore: publicProfile.developerInfo?.reputationScore,
-          completedProjects: publicProfile.developerInfo?.completedProjects,
-          githubProfile: publicProfile.developerInfo?.githubProfile,
-          workExperience: publicProfile.developerInfo?.workExperience,
-          portfolioUrl: publicProfile.developerInfo?.portfolioUrl,
-          bio: publicProfile.developerInfo?.bio,
-          education: publicProfile.developerInfo?.education
-        },
-      }),
-      ...(publicProfile.role === "RECRUITER" && {
-        recruiterInfo: {
-          company: publicProfile.recruiterInfo?.company,
-          position: publicProfile.recruiterInfo?.position,
-          industry: publicProfile.recruiterInfo?.industry,
-          reputationScore: publicProfile.recruiterInfo?.reputationScore,
-        },
-      }),
-    };
+    const publicProfile: any = matchingProfiles[0];
     
     return res.json({
       success: true,
-      profile: safePublicProfile
+      profile: publicProfile
     });
   } catch (error) {
     console.error("Error fetching public profile:", error);
