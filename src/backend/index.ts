@@ -3,6 +3,7 @@ import { StableBTreeMap, Principal } from "azle";
 import express from "express";
 import cors from "cors";
 import bcrypt from "bcryptjs";
+import "dotenv/config"
 
 import { User, UserProfile, UserRole } from "./types/types";
 import { validateDeveloperInfo, validateRecruiterInfo } from "./utility";
@@ -314,6 +315,205 @@ app.put("/profile/update", verifySession, async (req: any, res: any) => {
   }
 });
 
+app.post("/getAccessToken", async (req: any, res: any) => {
+  try {
+    const { code } = req.body;
+    
+    if (!code) {
+      return res.status(400).json({ error: "Authorization code is required" });
+    }
+    
+    const response = await fetch(`https://github.com/login/oauth/access_token`, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        client_id: "Ov23liUnpwgIXQJ3TCkg",
+        client_secret: process.env.CLIENT_SECRET,
+        code: code
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`GitHub API responded with status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return res.status(200).json(data);
+  } catch (error: any) {
+    console.error("Error obtaining GitHub access token:", error);
+    return res.status(500).json({
+      error: "Failed to obtain access token",
+      message: error.message
+    });
+  }
+});
+app.post("/getUserData", async (req: any, res: any) => {
+  try {
+    const { accessToken } = req.body;
+    
+    if (!accessToken) {
+      return res.status(401).json({ error: "Access token is required" });
+    }
+    
+    const response = await fetch("https://api.github.com/user", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json"
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`GitHub API responded with status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return res.status(200).json(data);
+  } catch (error: any) {
+    console.error("Error fetching GitHub user data:", error);
+    return res.status(500).json({
+      error: "Failed to fetch user data",
+      message: error.message
+    });
+  }
+});
+
+app.post("/getLinkedInAccessToken", async (req, res) => {
+  try {
+    const { code } = req.body;
+    
+    if (!code) {
+      return res.status(400).json({ error: "Authorization code is required" });
+    }
+    
+    // Prepare request body as string - avoid using URLSearchParams
+    const requestBody = 
+      `grant_type=authorization_code&` +
+      `code=${encodeURIComponent(code)}&` +
+      `client_id=779arcfohtj76f&` +
+      `client_secret=${encodeURIComponent(process.env.LINKEDIN_SECRET || "")}&` +
+      `redirect_uri=${encodeURIComponent("http://localhost:5173/auth/linkedin/callback")}`;
+    
+    // Log for debugging
+    console.log("LinkedIn request body:", requestBody);
+    
+    // Make request to LinkedIn
+    const response = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: requestBody
+    });
+    
+    // Handle response
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("LinkedIn API error response:", errorText);
+      throw new Error(`LinkedIn API responded with status: ${response.status}, ${errorText}`);
+    }
+    
+    const data = await response.json();
+    return res.status(200).json(data);
+  } catch (error:any) {
+    console.error("Error obtaining LinkedIn access token:", error);
+    return res.status(500).json({
+      error: "Failed to obtain LinkedIn access token",
+      message: error.message
+    });
+  }
+});
+
+app.post("/getLinkedInUserData", async (req: any, res: any) => {
+  try {
+    const { accessToken } = req.body;
+    
+    if (!accessToken) {
+      return res.status(401).json({ error: "Access token is required" });
+    }
+    
+    const response = await fetch("https://api.linkedin.com/v2/userinfo", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json"
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`LinkedIn API responded with status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return res.status(200).json(data);
+  } catch (error: any) {
+    console.error("Error fetching LinkedIn user data:", error);
+    return res.status(500).json({
+      error: "Failed to fetch LinkedIn user data",
+      message: error.message
+    });
+  }
+});
+
+
+app.post("/getLinkedInProfileDetails", async (req: any, res: any) => {
+  try {
+    const { accessToken } = req.body;
+    
+    if (!accessToken) {
+      return res.status(401).json({ error: "Access token is required" });
+    }
+    
+    // Fetch basic profile data
+    const profileResponse = await fetch(
+      "https://api.linkedin.com/v2/me?projection=(id,firstName,lastName,profilePicture(displayImage~:playableStreams))", 
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: "application/json"
+        }
+      }
+    );
+    
+    if (!profileResponse.ok) {
+      throw new Error(`LinkedIn API responded with status: ${profileResponse.status}`);
+    }
+    
+    const profileData = await profileResponse.json();
+    
+    // Fetch position/experience data
+    const positionsResponse = await fetch(
+      "https://api.linkedin.com/v2/positions?q=memberPositions&memberIdentity=(id:" + profileData.id + ")", 
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: "application/json"
+        }
+      }
+    );
+    
+    let positions = [];
+    if (positionsResponse.ok) {
+      const positionsData = await positionsResponse.json();
+      positions = positionsData.elements || [];
+    }
+    
+    return res.status(200).json({
+      profile: profileData,
+      positions: positions
+    });
+    
+  } catch (error: any) {
+    console.error("Error fetching LinkedIn profile details:", error);
+    return res.status(500).json({
+      error: "Failed to fetch LinkedIn profile details",
+      message: error.message
+    });
+  }
+});
 // Search profiles (public)
 app.get("/profiles/search", (req, res) => {
   try {
@@ -412,6 +612,97 @@ app.get("/profiles/search", (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Internal server error",
+    });
+  }
+});
+
+// Public profile route - can be accessed using firstName and lastName
+app.get("/profiles/public/:name", async (req, res) => {
+  try {
+    const { name } = req.params;
+    
+    // Handle hyphenated names (e.g., "john-doe")
+    let firstName:any, lastName:any;
+    if (name.includes("-")) {
+      [firstName, lastName] = name.split("-").map(part => 
+        part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+      );
+    } else {
+      // If no hyphen, consider it as just a firstName search
+      firstName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+    }
+    
+    // Find profiles matching the name
+    let matchingProfiles = Array.from(userProfiles.values()).filter(profile => {
+      if (lastName) {
+        // Both first and last name provided
+        return profile.firstName.toLowerCase() === firstName.toLowerCase() && 
+               profile.lastName.toLowerCase() === lastName.toLowerCase();
+      } else {
+        // Only firstName provided
+        return profile.firstName.toLowerCase() === firstName.toLowerCase();
+      }
+    });
+    
+    if (matchingProfiles.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Profile not found"
+      });
+    }
+    
+    // Return the first matching profile (or could add logic to handle multiple matches)
+    const publicProfile:any = matchingProfiles[0];
+    
+    // Create safe public profile (omitting sensitive info)
+    const safePublicProfile = {
+      id: publicProfile.id,
+      firstName: publicProfile.firstName,
+      lastName: publicProfile.lastName,
+      title: publicProfile.title,
+      country: publicProfile.country,
+      district: publicProfile.district,
+      province: publicProfile.province,
+      profilePic: publicProfile.profilePic,
+      coverPic: publicProfile.coverPic,
+      gender: publicProfile.gender,
+      role: publicProfile.role,
+      joinedDate: publicProfile.joinedDate,
+      lastActive: publicProfile.lastActive,
+      // Include role-specific public info
+      ...(publicProfile.role === "DEVELOPER" && {
+        developerInfo: {
+          skills: publicProfile.developerInfo?.skills,
+          experience: publicProfile.developerInfo?.experience,
+          level: publicProfile.developerInfo?.level,
+          reputationScore: publicProfile.developerInfo?.reputationScore,
+          completedProjects: publicProfile.developerInfo?.completedProjects,
+          githubProfile: publicProfile.developerInfo?.githubProfile,
+          workExperience: publicProfile.developerInfo?.workExperience,
+          portfolioUrl: publicProfile.developerInfo?.portfolioUrl,
+          bio: publicProfile.developerInfo?.bio,
+          education: publicProfile.developerInfo?.education
+        },
+      }),
+      ...(publicProfile.role === "RECRUITER" && {
+        recruiterInfo: {
+          company: publicProfile.recruiterInfo?.company,
+          position: publicProfile.recruiterInfo?.position,
+          industry: publicProfile.recruiterInfo?.industry,
+          reputationScore: publicProfile.recruiterInfo?.reputationScore,
+        },
+      }),
+    };
+    
+    return res.json({
+      success: true,
+      profile: safePublicProfile
+    });
+  } catch (error) {
+    console.error("Error fetching public profile:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error"
     });
   }
 });

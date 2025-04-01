@@ -15,17 +15,42 @@ export type User = {
 };
 
 // Developer specific information
+
+export type GitHubProfile = {
+  username?: string;
+  html_url:string
+  repositories?: {
+    total?: number;
+    publicRepos?: number;
+  };
+  contributions?: {
+    totalCommits?: number;
+    pullRequests?: {
+      merged?: number;
+    };
+  };
+  languages?: string[];
+};
+
+export type WorkExperience = {
+  currentRole?: {
+    title?: string;
+    company?: string;
+  };
+  linkedin_link:string;
+  totalYearsOfExperience?: number;
+  skills?: string[];
+};
+
 export type DeveloperInfo = {
   skills: string[];
-  experience: number; // Years of experience
-  githubProfile?: string;
+  githubProfile?: GitHubProfile;
+  workExperience?: WorkExperience;
   portfolioUrl?: string;
   bio?: string;
-  education?: string;
   reputationScore: number;
-  completedProjects: number;
-  successfulHires: number;
   level: string;
+  education:string[]
 };
 
 // Recruiter specific information

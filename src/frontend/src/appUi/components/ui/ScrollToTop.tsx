@@ -45,7 +45,7 @@ function ScrollToTop() {
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-20"></span>
           <button
             onClick={scrollToTop}
-            className="relative inline-flex items-center justify-center p-3 rounded-full bg-cyan-700 text-white hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
+            className="relative inline-flex items-center justify-center p-3 rounded-full bg-blue-700 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
           >
             <ScrollButton />
           </button>

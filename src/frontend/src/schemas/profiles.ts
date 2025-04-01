@@ -9,71 +9,109 @@ export enum Country {
   Rwanda = "rwanda",
 }
 
-const developerInfoSchema = z.object({
+export type GitHubProfile = {
+  username?: string;
+  html_url: string;
+  repositories?: {
+    total?: number;
+    publicRepos?: number;
+  };
+  contributions?: {
+    totalCommits?: number;
+    pullRequests?: {
+      merged?: number;
+    };
+  };
+  languages?: string[];
+};
+
+export type WorkExperience = {
+  currentRole?: {
+    title?: string;
+    company?: string;
+  };
+  linkedin_link: string;
+  totalYearsOfExperience?: number;
+  skills?: string[];
+};
+
+export type DeveloperInfo = {
+  skills: string[];
+  githubProfile?: GitHubProfile;
+  workExperience?: WorkExperience;
+  portfolioUrl?: string;
+  bio?: string;
+  reputationScore: number;
+  level: string;
+  education: string[];
+};
+
+const githubProfileSchema = z.object({
+  username: z.string().optional(),
+  html_url: z.string(),
+  repositories: z
+    .object({
+      total: z.number().optional(),
+      publicRepos: z.number().optional(),
+    })
+    .optional(),
+  contributions: z
+    .object({
+      totalCommits: z.number().optional(),
+      pullRequests: z
+        .object({
+          merged: z.number().optional(),
+        })
+        .optional(),
+    })
+    .optional(),
+  languages: z.array(z.string()).optional(),
+});
+
+const workExperienceSchema = z.object({
+  currentRole: z
+    .object({
+      title: z.string().optional(),
+      company: z.string().optional(),
+    })
+    .optional(),
+  linkedin_link: z.string(),
+  totalYearsOfExperience: z.number().optional(),
   skills: z.array(z.string()).optional(),
-  assessmentScore: z.number().optional(),
-  experience: z.number().optional(),
-  githubProfile: z.string().optional(),
+});
+
+const developerInfoSchema = z.object({
+  skills: z.array(z.string()),
+  githubProfile: githubProfileSchema.optional(),
+  workExperience: workExperienceSchema.optional(),
   portfolioUrl: z.string().optional(),
   bio: z.string().optional(),
-  education: z.string().optional(),
-  reputationScore: z.number().optional(),
-  completedProjects: z.number().optional(),
-  successfulHires: z.number().optional(),
-  level: z.string().optional(),
+  reputationScore: z.number(),
+  level: z.string(),
+  education: z.array(z.string()).optional(),
 });
 
 export const profileSchema = z.object({
-  firstName: z
-    .string({ required_error: "First name is required" })
-    .min(1, { message: "First name is required" }),
-  lastName: z
-    .string({ required_error: "Last name is required" })
-    .min(1, { message: "Last name is required" }),
-  dateOfBirth: z
-    .string({ required_error: "Date of birth is required" })
-    .nonempty("Date of birth is required"),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  dateOfBirth: z.string().nonempty("Date of birth is required"),
   gender: z.nativeEnum(Gender, {
     required_error: "Gender is required",
     invalid_type_error: "Please select a valid gender",
   }),
-  email: z
-    .string({ required_error: "Email is required" })
-    .email({ message: "Invalid email address" }),
-  phone: z
-    .string({ required_error: "Phone number is required" })
-    .nonempty("Phone number is required"),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().nonempty("Phone number is required"),
   country: z.nativeEnum(Country, { required_error: "Country is required" }),
-  province: z
-    .string({ required_error: "Province is required" })
-    .nonempty("Province is required"),
-  district: z
-    .string({ required_error: "District is required" })
-    .nonempty("District is required"),
+  province: z.string().nonempty("Province is required"),
+  district: z.string().nonempty("District is required"),
   profilePic: z.instanceof(File).optional(),
   coverPic: z.instanceof(File).optional(),
-  title: z
-    .string({ required_error: "Title is required" })
-    .min(3, { message: "Title must be at least 3 characters" }),
+  title: z.string().min(3, "Title must be at least 3 characters"),
   descriptions: z
-    .string({ required_error: "Description is required" })
-    .min(10, { message: "Description must be at least 10 characters" })
-    .max(500, { message: "Description must not exceed 500 characters" }),
-  developerInfo: developerInfoSchema.optional(),
+    .string()
+    .min(10, "Description must be at least 10 characters")
+    .max(500, "Description must not exceed 500 characters"),
+  developerInfo: developerInfoSchema,
 });
 
-export type IcreateProfile = z.infer<typeof profileSchema>;
-
-export type DeveloperInfo = {
-  skills: string[];
-  assessmentScore: number;
-  experience: number;
-  githubProfile?: string;
-  portfolioUrl?: string;
-  bio?: string;
-  education?: string;
-  reputationScore: number;
-  completedProjects: number;
-  successfulHires: number;
-  level: string;
-};
+export type ICreateProfile = z.infer<typeof profileSchema>;

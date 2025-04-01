@@ -1,10 +1,13 @@
 import Layout from "./layouts/Layout";
 import PortalLayout from "./layouts/PortalLayout";
 import TeacherPortalLayout from "./layouts/TeacherPortalLayout";
+import LinkedInCallback from "./pages/callBacks/LinkedinCallBack";
 import Home from "./pages/landingPage";
 import Login from "./pages/login";
+import RecruiterProfileCreation from "./pages/profile/CreateProfileRecruiter";
 import ProfileCreation from "./pages/profile/creatProfile";
 import Profile from "./pages/profile/Profile";
+import SearchResults from "./pages/profile/SearchResults";
 import Signup from "./pages/signup";
 import { RouteConfig } from "./types/routes/ route";
 
@@ -21,9 +24,21 @@ const routes: RouteConfig[] = [
         allowedRoles: ["developer", "recruiter"],
       },
       {
-        path: "profile/:name",
+        path: "/profile",
         element: Profile,
         protected: true,
+        allowedRoles: ["developer", "recruiter"],
+      },
+      {
+        path: "/profile/:name",
+        element: Profile,
+        protected: false,
+        allowedRoles: ["developer", "recruiter"],
+      },
+      {
+        path: "search",
+        element: SearchResults,
+        protected: false,
         allowedRoles: ["developer", "recruiter"],
       },
       {
@@ -34,72 +49,16 @@ const routes: RouteConfig[] = [
       },
       { path: "/signup", element: Signup, protected: false },
       { path: "/login", element: Login, protected: false },
+      {
+        path: "/auth/linkedin/callback",
+        element: LinkedInCallback
+      },
+      {
+        path: "/profile/create-recruiter",
+        element: RecruiterProfileCreation
+      },
     ],
   },
-  // {
-  //   path: "/student-portal",
-  //   element: PortalLayout,
-  //   children: [
-  //     {
-  //       path: "",
-  //       element: OverView,
-  //       protected: true,
-  //       allowedRoles: ["student"],
-  //     },
-  //     {
-  //       path: "courses",
-  //       element: CoursesTable,
-  //       protected: true,
-  //       allowedRoles: ["student"],
-  //     },
-  //     {
-  //       path: "my-marks",
-  //       element: MarksTable,
-  //       protected: true,
-  //       allowedRoles: ["student"],
-  //     },
-  //   ],
-  //   protected: true,
-  //   allowedRoles: ["student"],
-  // },
-  // {
-  //   path: "/teacher-portal",
-  //   element: TeacherPortalLayout,
-  //   children: [
-  //     {
-  //       path: "",
-  //       element: TeacherOverView,
-  //       protected: true,
-  //       allowedRoles: ["teacher"],
-  //     },
-  //     {
-  //       path: "students",
-  //       element: StudentsTable,
-  //       protected: true,
-  //       allowedRoles: ["teacher"],
-  //     },
-  //     {
-  //       path: "students-marks",
-  //       element: StudentsMarks,
-  //       protected: true,
-  //       allowedRoles: ["teacher"],
-  //     },
-  //     {
-  //       path: "students-marks/mark",
-  //       element: MarkingComponent,
-  //       protected: true,
-  //       allowedRoles: ["teacher"],
-  //     },
-  //     {
-  //       path: "students-marks/view/:id",
-  //       element: StudentMarksDetail,
-  //       protected: true,
-  //       allowedRoles: ["teacher"],
-  //     },
-  //   ],
-  //   protected: true,
-  //   allowedRoles: ["teacher"],
-  // },
 ];
 
 export default routes;

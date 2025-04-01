@@ -14,10 +14,11 @@ import { getProfile } from "../../api/profiles";
 
 const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
-
+  const [profile, setProfile] = useState<boolean>(false);
+  
   const navigate = useNavigate();
   const { login } = useAuth();
-
+  
   const {
     register,
     handleSubmit,
@@ -25,16 +26,19 @@ const Login = () => {
   } = useForm<ISignIn>({
     resolver: zodResolver(loginSchema),
   });
-
+  
   const onSubmit = async (data: ISignIn) => {
     setIsLoading(true);
     try {
       const loginResponse = await loginUser(data);
-
+      console.log("loginResponse+++++++++++", loginResponse);
+      
       if (loginResponse && loginResponse.sessionId) {
         login(btoa(JSON.stringify(loginResponse)));
+        
         try {
           const profile = await getProfile();
+          console.log("profile+++++++++++", profile);
           if (profile) {
             const userData = getStoredUserData();
             const profileUrl =
@@ -43,9 +47,15 @@ const Login = () => {
           }
         } catch (error: any) {
           console.log("error+++++++++++", error);
-          const checkProfileNotFound = error.response.data.message;
+          const checkProfileNotFound = error.response?.data?.message;
           if (checkProfileNotFound === "Profile not found") {
-            navigate("/profile/create");
+            // Check user role for redirection
+            const userData = getStoredUserData();
+            if (userData.role === "recruiter") {
+              navigate("/profile/create-recruiter");
+            } else {
+              navigate("/profile/create");
+            }
           }
         }
       }
@@ -55,9 +65,9 @@ const Login = () => {
       setIsLoading(false);
     }
   };
-
+  
   return (
-    <div className="max-w-[450px] border  bg-white p-4 rounded-md mx-auto">
+    <div className="max-w-[450px] border bg-white p-4 rounded-md mx-auto">
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3">
         <Heading
           subTitle={"Sign in to manage your account activities"}
@@ -107,7 +117,7 @@ const Login = () => {
             <div className="h-[1px] bg-grayColor my-4"></div>
             <p className="mt-auto font-normal text-sm pt-4">
               Don't have an Account ?{" "}
-              <a href="/signup" className=" underline   text-primaryBlueColor">
+              <a href="/signup" className="underline text-primaryBlueColor">
                 Create Account
               </a>
             </p>

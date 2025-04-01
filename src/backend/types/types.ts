@@ -22,10 +22,10 @@ export type DeveloperInfo = {
   portfolioUrl?: string;
   bio?: string;
   education?: string;
-  reputationScore: number;
-  completedProjects: number;
-  successfulHires: number;
-  level: string;
+  reputationScore?: number;
+  completedProjects?: number;
+  successfulHires?: number;
+  level?: string;
 };
 
 // Recruiter specific information

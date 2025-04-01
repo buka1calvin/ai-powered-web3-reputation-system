@@ -72,10 +72,45 @@ export const getProfile = async (): Promise<any> => {
         },
       }
     );
-    console.log("profile===",response.data)
     return response.data;
   } catch (error) {
     console.error("Error creating profile:", error);
     throw error;
+  }
+};
+
+
+export const getProfileByName = async (name:string) => {
+  try {
+    const response = await fetch(`${(import.meta as any).env.VITE_CANISTER_ORIGIN}/profiles/public/${name}`);
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching profile by name:", error);
+    return { success: false, message: "Failed to fetch profile" };
+  }
+};
+
+// Search users
+export const searchUsers = async (query:any, filters:any = {}) => {
+  try {
+    // Build query string from filters
+    const queryParams = new URLSearchParams();
+    
+    // Add search query if present
+    if (query) {
+      queryParams.append('name', query);
+    }
+    
+    // Add filters
+    if (filters.role) queryParams.append('role', filters.role);
+    if (filters.skills) queryParams.append('skills', filters.skills);
+    if (filters.experienceMin) queryParams.append('experienceMin', filters.experienceMin);
+    if (filters.location) queryParams.append('location', filters.location);
+    
+    const response = await fetch(`${(import.meta as any).env.VITE_CANISTER_ORIGIN}/profiles/search?${queryParams.toString()}`);
+    return await response.json();
+  } catch (error) {
+    console.error("Error searching users:", error);
+    return { success: false, message: "Failed to search users" };
   }
 };
